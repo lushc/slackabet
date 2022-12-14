@@ -15,6 +15,7 @@ func TestConvertCmd_Convert(t *testing.T) {
 		"writes letters with alternating colours with whitespace between words": {
 			cmd: ConvertCmd{
 				Sentence: []string{"test !?#@"},
+				EmojiSet: alphabetSet,
 				Pattern:  letterPattern,
 			},
 			expected: ":alphabet-white-t::alphabet-yellow-e::alphabet-white-s::alphabet-yellow-t:    :alphabet-white-exclamation::alphabet-yellow-question::alphabet-white-hash::alphabet-yellow-at:",
@@ -22,6 +23,7 @@ func TestConvertCmd_Convert(t *testing.T) {
 		"writes words with alternating colours with emojis between them": {
 			cmd: ConvertCmd{
 				Sentence:   []string{"te st"},
+				EmojiSet:   alphabetSet,
 				Pattern:    wordPattern,
 				SpaceEmoji: "catjam",
 			},
@@ -30,6 +32,7 @@ func TestConvertCmd_Convert(t *testing.T) {
 		"writes all yellow colour": {
 			cmd: ConvertCmd{
 				Sentence: []string{"test"},
+				EmojiSet: alphabetSet,
 				Pattern:  yellowPattern,
 			},
 			expected: ":alphabet-yellow-t::alphabet-yellow-e::alphabet-yellow-s::alphabet-yellow-t:",
@@ -37,13 +40,22 @@ func TestConvertCmd_Convert(t *testing.T) {
 		"writes all white colour": {
 			cmd: ConvertCmd{
 				Sentence: []string{"test"},
+				EmojiSet: alphabetSet,
 				Pattern:  whitePattern,
 			},
 			expected: ":alphabet-white-t::alphabet-white-e::alphabet-white-s::alphabet-white-t:",
 		},
+		"writes scrabble letters with a default space emoji": {
+			cmd: ConvertCmd{
+				Sentence: []string{"te s%t"},
+				EmojiSet: scrabbleSet,
+			},
+			expected: ":scrabble-t::scrabble-e::scrabble-blank::scrabble-s::scrabble-t:",
+		},
 		"adds head and tail emojis": {
 			cmd: ConvertCmd{
 				Sentence:  []string{"a"},
+				EmojiSet:  alphabetSet,
 				Pattern:   letterPattern,
 				HeadEmoji: "catjam",
 				TailEmoji: "catjammer",
@@ -53,6 +65,7 @@ func TestConvertCmd_Convert(t *testing.T) {
 		"overrides characters with different emojis": {
 			cmd: ConvertCmd{
 				Sentence: []string{"t$"},
+				EmojiSet: alphabetSet,
 				Pattern:  letterPattern,
 				Override: map[string]string{
 					"t": "catjam",
@@ -64,6 +77,7 @@ func TestConvertCmd_Convert(t *testing.T) {
 		"lower-cases letters": {
 			cmd: ConvertCmd{
 				Sentence: []string{"T"},
+				EmojiSet: alphabetSet,
 				Pattern:  letterPattern,
 			},
 			expected: ":alphabet-white-t:",
@@ -71,12 +85,20 @@ func TestConvertCmd_Convert(t *testing.T) {
 		"supports multiple positional arguments, ignoring unsupported symbols": {
 			cmd: ConvertCmd{
 				Sentence: []string{"te ", "±", "s$t"},
+				EmojiSet: alphabetSet,
 				Pattern:  wordPattern,
 			},
 			expected: ":alphabet-white-t::alphabet-white-e:    :alphabet-yellow-s::alphabet-yellow-t:",
 		},
 		"errors when no words are provided": {
 			expectedErr: ErrNoMatches,
+		},
+		"errors when an unsupported set is given": {
+			cmd: ConvertCmd{
+				Sentence: []string{"T"},
+				EmojiSet: "foo",
+			},
+			expectedErr: ErrNotSupported,
 		},
 	}
 

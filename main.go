@@ -13,7 +13,8 @@ import (
 // ConvertCmd is the CLI command
 type ConvertCmd struct {
 	Sentence   []string          `arg:"" required:"" passthrough:"" help:"The sentence to convert. Letter replacements are case-insensitive, with each word separated by 4 spaces by default"`
-	Pattern    string            `short:"p" enum:"letter,word,yellow,white" default:"letter" help:"Alternating colour pattern to use for the alphabet (letter, word, yellow, white)"`
+	EmojiSet   string            `short:"e" enum:"alphabet,scrabble" default:"alphabet" help:"Specify the emoji-set to use. Defaults to Slack's alphabet which supports patterns"`
+	Pattern    string            `short:"p" enum:"letter,word,yellow,white" default:"letter" help:"Alternating colour pattern to use for the alphabet emoji-set (letter, word, yellow, white)"`
 	Override   map[string]string `short:"o" help:"Override or add emojis for specific characters (e.g. 4=four)"`
 	SpaceEmoji string            `name:"space" help:"Emoji to separate words with instead of whitespace"`
 	HeadEmoji  string            `name:"head" help:"Emoji to start the sentence with"`
@@ -21,16 +22,11 @@ type ConvertCmd struct {
 	NoCopy     bool              `help:"Print the output to console instead of copying to the clipboard"`
 }
 
-const (
-	letterPattern = "letter"
-	wordPattern   = "word"
-	yellowPattern = "yellow"
-	whitePattern  = "white"
-)
-
 var (
 	// ErrNoMatches is returned when the sentence is only whitespace
 	ErrNoMatches = errors.New("plz give at least one word")
+	// ErrNotSupported is returned when a matching strategy doesn't exist for the emoji-set
+	ErrNotSupported = errors.New("emoji-set not supported")
 )
 
 var cli struct {
@@ -92,17 +88,23 @@ func (c ConvertCmd) Convert() (string, error) {
 		c.TailEmoji = trimEmoji(c.TailEmoji)
 	}
 
+	var strategy emojiStrategy
+	switch c.EmojiSet {
+	case alphabetSet:
+		strategy = newAlphabetStrategy(c.Pattern)
+	case scrabbleSet:
+		strategy = newScrabbleStrategy(&c)
+	default:
+		return "", ErrNotSupported
+	}
+
 	// characters not supported by the default alphabet are mapped to specific emojis here with applied overrides
 	dict := c.getDictionary()
-
-	// keep track of committed letters & words for alternating patterns
-	writtenLetters := 0
-	writtenWords := 0
-	last := words[length-1]
 
 	var b strings.Builder
 	writeEmoji(&b, c.HeadEmoji)
 
+	last := words[length-1]
 	for _, word := range words {
 		committed := false
 		for _, char := range word {
@@ -111,37 +113,30 @@ func (c ConvertCmd) Convert() (string, error) {
 				char += 32
 			}
 
-			// lookup characters in the dictionary, falling back to the alphabet
+			// lookup characters in the dictionary, falling back to the alphabet of the strategy
 			emoji, ok := dict[string(char)]
 			if !ok {
-				var colour string
-				switch c.Pattern {
-				case letterPattern:
-					colour = whichColour(writtenLetters)
-				case wordPattern:
-					colour = whichColour(writtenWords)
-				default:
-					colour = c.Pattern
-				}
-				emoji = alphabetEmoji(string(char), colour)
+				emoji = strategy.Get(string(char))
 			}
 			if emoji == "" {
 				continue
 			}
 
 			writeEmoji(&b, emoji)
-			writtenLetters += 1
+			strategy.LetterCallback()
 			committed = true
 		}
 
-		if committed && word != last {
-			if c.SpaceEmoji != "" {
-				writeEmoji(&b, c.SpaceEmoji)
-			} else {
-				b.WriteString("    ")
-			}
-			writtenWords += 1
+		if !committed || word == last {
+			continue
 		}
+
+		if c.SpaceEmoji != "" {
+			writeEmoji(&b, c.SpaceEmoji)
+		} else {
+			b.WriteString("    ")
+		}
+		strategy.WordCallback()
 	}
 
 	writeEmoji(&b, c.TailEmoji)
@@ -166,30 +161,4 @@ func writeEmoji(b *strings.Builder, emoji string) {
 		return
 	}
 	b.WriteString(fmt.Sprintf(":%s:", emoji))
-}
-
-func alphabetEmoji(char, colour string) string {
-	var suffix string
-	switch {
-	case char == "!":
-		suffix = "exclamation"
-	case char == "#":
-		suffix = "hash"
-	case char == "?":
-		suffix = "question"
-	case char == "@":
-		suffix = "at"
-	case char >= "a" && char <= "z":
-		suffix = char
-	default:
-		return ""
-	}
-	return fmt.Sprintf("alphabet-%s-%s", colour, suffix)
-}
-
-func whichColour(i int) string {
-	if i%2 == 0 {
-		return whitePattern
-	}
-	return yellowPattern
 }
