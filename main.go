@@ -19,7 +19,7 @@ type ConvertCmd struct {
 	SpaceEmoji string            `name:"space" help:"Emoji to separate words with instead of whitespace"`
 	HeadEmoji  string            `name:"head" help:"Emoji to start the sentence with"`
 	TailEmoji  string            `name:"tail" help:"Emoji to end the sentence with"`
-	NoCopy     bool              `help:"Print the output to console instead of copying to the clipboard"`
+	Copy       bool              `default:"true" negatable:"" help:"Copy to the clipboard by default, negating will output to console instead"`
 }
 
 var (
@@ -53,7 +53,7 @@ func (c ConvertCmd) Run() error {
 		return fmt.Errorf("converting sentence: %w", err)
 	}
 
-	if c.NoCopy {
+	if !c.Copy {
 		fmt.Println(out)
 		return nil
 	}
