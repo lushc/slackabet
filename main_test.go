@@ -12,14 +12,14 @@ func TestConvertCmd_Convert(t *testing.T) {
 		expected    string
 		expectedErr error
 	}{
-		"writes letters with alternating colours": {
+		"writes letters with alternating colours with whitespace between words": {
 			cmd: ConvertCmd{
-				Sentence: "test!?#@",
+				Sentence: "test !?#@",
 				Pattern:  letterPattern,
 			},
-			expected: ":alphabet-white-t::alphabet-yellow-e::alphabet-white-s::alphabet-yellow-t::alphabet-white-exclamation::alphabet-yellow-question::alphabet-white-hash::alphabet-yellow-at:",
+			expected: ":alphabet-white-t::alphabet-yellow-e::alphabet-white-s::alphabet-yellow-t:    :alphabet-white-exclamation::alphabet-yellow-question::alphabet-white-hash::alphabet-yellow-at:",
 		},
-		"writes words with alternating colours": {
+		"writes words with alternating colours with emojis between them": {
 			cmd: ConvertCmd{
 				Sentence:   "te st",
 				Pattern:    wordPattern,

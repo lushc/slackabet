@@ -11,12 +11,12 @@ import (
 
 // ConvertCmd is the CLI command
 type ConvertCmd struct {
-	Sentence   string            `arg:"" required:"" help:"The sentence to convert (letter replacements are case-insensitive)"`
+	Sentence   string            `arg:"" required:"" help:"The sentence to convert. Letter replacements are case-insensitive, with each word separated by 4 spaces by default"`
 	Pattern    string            `short:"p" enum:"letter,word,yellow,white" default:"letter" help:"Alternating colour pattern to use for the alphabet (letter, word, yellow, white)"`
 	Override   map[string]string `short:"o" help:"Override or add emojis for specific characters (e.g. 4=four)"`
-	SpaceEmoji string            `name:"space" default:"star2" help:"Emoji to space words with"`
-	HeadEmoji  string            `name:"head" help:"Emoji to start with"`
-	TailEmoji  string            `name:"tail" help:"Emoji to end with"`
+	SpaceEmoji string            `name:"space" help:"Emoji to separate words with instead of whitespace"`
+	HeadEmoji  string            `name:"head" help:"Emoji to start the sentence with"`
+	TailEmoji  string            `name:"tail" help:"Emoji to end the sentence with"`
 }
 
 const (
@@ -32,7 +32,7 @@ var (
 )
 
 var cli struct {
-	Convert ConvertCmd `cmd:"" default:"withargs" help:"Convert a sentence to use emoji letters & spacing"`
+	Convert ConvertCmd `cmd:"" default:"withargs" help:"Convert a sentence to use emojis, annoying everyone"`
 }
 
 func main() {
@@ -118,7 +118,11 @@ func (c ConvertCmd) Convert() (string, error) {
 		}
 
 		if word != last {
-			writeEmoji(&b, c.SpaceEmoji)
+			if c.SpaceEmoji != "" {
+				writeEmoji(&b, c.SpaceEmoji)
+			} else {
+				b.WriteString("    ")
+			}
 		}
 	}
 
