@@ -12,7 +12,7 @@ import (
 
 // ConvertCmd is the CLI command
 type ConvertCmd struct {
-	Sentence   string            `arg:"" required:"" help:"The sentence to convert. Letter replacements are case-insensitive, with each word separated by 4 spaces by default"`
+	Sentence   []string          `arg:"" required:"" passthrough:"" help:"The sentence to convert. Letter replacements are case-insensitive, with each word separated by 4 spaces by default"`
 	Pattern    string            `short:"p" enum:"letter,word,yellow,white" default:"letter" help:"Alternating colour pattern to use for the alphabet (letter, word, yellow, white)"`
 	Override   map[string]string `short:"o" help:"Override or add emojis for specific characters (e.g. 4=four)"`
 	SpaceEmoji string            `name:"space" help:"Emoji to separate words with instead of whitespace"`
@@ -74,7 +74,7 @@ func (c ConvertCmd) Run() error {
 func (c ConvertCmd) Convert() (string, error) {
 	// negated whitespace match so that words are split
 	re := regexp.MustCompile(`\S+`)
-	words := re.FindAllString(c.Sentence, -1)
+	words := re.FindAllString(strings.Join(c.Sentence, " "), -1)
 	length := len(words)
 	if length < 1 {
 		return "", ErrNoMatches
@@ -92,15 +92,19 @@ func (c ConvertCmd) Convert() (string, error) {
 		c.TailEmoji = trimEmoji(c.TailEmoji)
 	}
 
-	// characters not supported by the default alphabet are mapped to specific emojis here before applying overrides
+	// characters not supported by the default alphabet are mapped to specific emojis here with applied overrides
 	dict := c.getDictionary()
-	letters := 0
+
+	// keep track of committed letters & words for alternating patterns
+	writtenLetters := 0
+	writtenWords := 0
 	last := words[length-1]
 
 	var b strings.Builder
 	writeEmoji(&b, c.HeadEmoji)
 
-	for i, word := range words {
+	for _, word := range words {
+		committed := false
 		for _, char := range word {
 			// convert uppercase letters to lowercase
 			if char >= 65 && char <= 90 {
@@ -113,9 +117,9 @@ func (c ConvertCmd) Convert() (string, error) {
 				var colour string
 				switch c.Pattern {
 				case letterPattern:
-					colour = whichColour(letters)
+					colour = whichColour(writtenLetters)
 				case wordPattern:
-					colour = whichColour(i)
+					colour = whichColour(writtenWords)
 				default:
 					colour = c.Pattern
 				}
@@ -126,15 +130,17 @@ func (c ConvertCmd) Convert() (string, error) {
 			}
 
 			writeEmoji(&b, emoji)
-			letters += 1
+			writtenLetters += 1
+			committed = true
 		}
 
-		if word != last {
+		if committed && word != last {
 			if c.SpaceEmoji != "" {
 				writeEmoji(&b, c.SpaceEmoji)
 			} else {
 				b.WriteString("    ")
 			}
+			writtenWords += 1
 		}
 	}
 
