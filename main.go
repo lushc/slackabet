@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kong"
+	"golang.design/x/clipboard"
 )
 
 // ConvertCmd is the CLI command
@@ -17,6 +18,7 @@ type ConvertCmd struct {
 	SpaceEmoji string            `name:"space" help:"Emoji to separate words with instead of whitespace"`
 	HeadEmoji  string            `name:"head" help:"Emoji to start the sentence with"`
 	TailEmoji  string            `name:"tail" help:"Emoji to end the sentence with"`
+	NoCopy     bool              `help:"Print the output to console instead of copying to the clipboard"`
 }
 
 const (
@@ -54,7 +56,17 @@ func (c ConvertCmd) Run() error {
 	if err != nil {
 		return fmt.Errorf("converting sentence: %w", err)
 	}
-	fmt.Println(out)
+
+	if c.NoCopy {
+		fmt.Println(out)
+		return nil
+	}
+
+	if err := clipboard.Init(); err != nil {
+		return fmt.Errorf("initialising clipboard: %w", err)
+	}
+
+	clipboard.Write(clipboard.FmtText, []byte(out))
 	return nil
 }
 
