@@ -117,13 +117,24 @@ func TestConvertCmd_Convert(t *testing.T) {
 
 func BenchmarkConvertCmd_Convert(b *testing.B) {
 	benches := map[string]ConvertCmd{
-		"basic": {
-			Sentence:   []string{"The quick brown fox jumps over the lazy dog"},
-			Pattern:    wordPattern,
-			SpaceEmoji: "dog",
+		"alphabet - word": {
+			Sentence: []string{"The quick brown fox jumps over the lazy dog"},
+			EmojiSet: alphabetSet,
+			Pattern:  wordPattern,
 		},
-		"extreme": {
+		"alphabet - letter": {
+			Sentence: []string{"The quick brown fox jumps over the lazy dog"},
+			EmojiSet: alphabetSet,
+			Pattern:  letterPattern,
+		},
+		"alphabet - colour": {
+			Sentence: []string{"The quick brown fox jumps over the lazy dog"},
+			EmojiSet: alphabetSet,
+			Pattern:  yellowPattern,
+		},
+		"alphabet - extreme": {
 			Sentence: []string{"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc scelerisque lobortis urna, eget convallis turpis eleifend a. Aliquam mollis pharetra quam. Integer ac velit at velit posuere euismod in non mauris. Nulla sem leo, bibendum vel facilisis a, convallis ut enim. Sed egestas eget metus in dignissim. Mauris sollicitudin mauris nec velit congue, pretium luctus justo cursus. Aliquam convallis felis vel commodo rhoncus. Nam laoreet ornare molestie."},
+			EmojiSet: alphabetSet,
 			Pattern:  letterPattern,
 			Override: map[string]string{
 				".": "full_moon",
@@ -132,6 +143,10 @@ func BenchmarkConvertCmd_Convert(b *testing.B) {
 			SpaceEmoji: "latin_cross",
 			HeadEmoji:  "catjam",
 			TailEmoji:  "catjammer",
+		},
+		"scrabble": {
+			Sentence: []string{"The quick brown fox jumps over the lazy dog"},
+			EmojiSet: scrabbleSet,
 		},
 	}
 
