@@ -6,6 +6,7 @@ require (
 	github.com/alecthomas/kong v0.7.1
 	github.com/stretchr/testify v1.8.1
 	golang.design/x/clipboard v0.6.3
+	golang.org/x/exp v0.0.0-20221212164502-fae10dda9338
 )
 
 require (

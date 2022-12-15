@@ -12,14 +12,15 @@ import (
 
 // ConvertCmd is the CLI command
 type ConvertCmd struct {
-	Sentence   []string          `arg:"" required:"" passthrough:"" help:"The sentence to convert. Letter replacements are case-insensitive, with each word separated by 4 spaces by default"`
-	EmojiSet   string            `short:"e" enum:"alphabet,scrabble" default:"alphabet" help:"Specify the emoji-set to use. Defaults to Slack's alphabet which supports patterns"`
-	Pattern    string            `short:"p" enum:"letter,word,yellow,white" default:"letter" help:"Alternating colour pattern to use for the alphabet emoji-set (letter, word, yellow, white)"`
-	Override   map[string]string `short:"o" help:"Override or add emojis for specific characters (e.g. 4=four)"`
-	SpaceEmoji string            `name:"space" help:"Emoji to separate words with instead of whitespace"`
-	HeadEmoji  string            `name:"head" help:"Emoji to start the sentence with"`
-	TailEmoji  string            `name:"tail" help:"Emoji to end the sentence with"`
-	Copy       bool              `default:"true" negatable:"" help:"Copy to the clipboard by default, negating will output to console instead"`
+	Sentence       []string          `arg:"" required:"" passthrough:"" help:"The sentence to convert. Letter replacements are case-insensitive, with each word separated by 4 spaces by default"`
+	EmojiSet       string            `short:"e" enum:"alphabet,scrabble,reaction" default:"alphabet" help:"Specify the emoji-set to use. Defaults to Slack's alphabet which supports patterns"`
+	Pattern        string            `short:"p" enum:"letter,word,yellow,white" default:"letter" help:"Alternating colour pattern to use for the alphabet emoji-set (letter, word, yellow, white)"`
+	Override       map[string]string `short:"o" help:"Override or add emojis for specific characters (e.g. 4=four)"`
+	SpaceEmoji     string            `name:"space" help:"Emoji to separate words with instead of whitespace"`
+	HeadEmoji      string            `name:"head" help:"Emoji to start the sentence with"`
+	TailEmoji      string            `name:"tail" help:"Emoji to end the sentence with"`
+	Copy           bool              `default:"true" negatable:"" help:"Copy to the clipboard by default, negating will output to console instead"`
+	DefaultSpacing string            `kong:"-"`
 }
 
 var (
@@ -76,6 +77,8 @@ func (c ConvertCmd) Convert() (string, error) {
 		return "", ErrNoMatches
 	}
 
+	c.DefaultSpacing = "    "
+
 	if c.SpaceEmoji != "" {
 		c.SpaceEmoji = trimEmoji(c.SpaceEmoji)
 	}
@@ -94,6 +97,8 @@ func (c ConvertCmd) Convert() (string, error) {
 		strategy = newAlphabetStrategy(c.Pattern)
 	case scrabbleSet:
 		strategy = newScrabbleStrategy(&c)
+	case reactionSet:
+		strategy = newReactionStrategy(&c)
 	default:
 		return "", ErrNotSupported
 	}
@@ -116,14 +121,18 @@ func (c ConvertCmd) Convert() (string, error) {
 			// lookup characters in the dictionary, falling back to the alphabet of the strategy
 			emoji, ok := dict[string(char)]
 			if !ok {
-				emoji = strategy.Get(string(char))
+				if str, err := strategy.Get(string(char)); err != nil {
+					return "", err
+				} else {
+					emoji = str
+				}
 			}
 			if emoji == "" {
 				continue
 			}
 
 			writeEmoji(&b, emoji)
-			strategy.LetterCallback()
+			strategy.CharacterCallback(&b)
 			committed = true
 		}
 
@@ -134,9 +143,9 @@ func (c ConvertCmd) Convert() (string, error) {
 		if c.SpaceEmoji != "" {
 			writeEmoji(&b, c.SpaceEmoji)
 		} else {
-			b.WriteString("    ")
+			b.WriteString(c.DefaultSpacing)
 		}
-		strategy.WordCallback()
+		strategy.WordCallback(&b)
 	}
 
 	writeEmoji(&b, c.TailEmoji)

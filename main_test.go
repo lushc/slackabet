@@ -10,7 +10,7 @@ func TestConvertCmd_Convert(t *testing.T) {
 	tests := map[string]struct {
 		cmd         ConvertCmd
 		expected    string
-		expectedErr error
+		expectedErr string
 	}{
 		"writes letters with alternating colours with whitespace between words": {
 			cmd: ConvertCmd{
@@ -52,6 +52,13 @@ func TestConvertCmd_Convert(t *testing.T) {
 			},
 			expected: ":scrabble-t::scrabble-e::scrabble-blank::scrabble-s::scrabble-t:",
 		},
+		"writes alphabet with single-use reaction constraints": {
+			cmd: ConvertCmd{
+				Sentence: []string{"happy", "birthday"},
+				EmojiSet: reactionSet,
+			},
+			expected: ":alphabet-white-h:\n:alphabet-yellow-a:\n:alphabet-white-p:\n:alphabet-yellow-p:\n:alphabet-white-y:\n:alphabet-yellow-b:\n:alphabet-white-i:\n:alphabet-yellow-r:\n:alphabet-white-t:\n:alphabet-yellow-h:\n:alphabet-white-d:\n:alphabet-white-a:\n:alphabet-yellow-y:\n",
+		},
 		"adds head and tail emojis": {
 			cmd: ConvertCmd{
 				Sentence:  []string{"a"},
@@ -91,22 +98,36 @@ func TestConvertCmd_Convert(t *testing.T) {
 			expected: ":alphabet-white-t::alphabet-white-e:    :alphabet-yellow-s::alphabet-yellow-t:",
 		},
 		"errors when no words are provided": {
-			expectedErr: ErrNoMatches,
+			expectedErr: ErrNoMatches.Error(),
 		},
 		"errors when an unsupported set is given": {
 			cmd: ConvertCmd{
 				Sentence: []string{"T"},
 				EmojiSet: "foo",
 			},
-			expectedErr: ErrNotSupported,
+			expectedErr: ErrNotSupported.Error(),
+		},
+		"errors when a character is used past the limit for reactions": {
+			cmd: ConvertCmd{
+				Sentence: []string{"tttest"},
+				EmojiSet: reactionSet,
+			},
+			expectedErr: `the character "t" at position 3 cannot be used more than 2 times`,
+		},
+		"errors when sentence length is past the limit for reactions": {
+			cmd: ConvertCmd{
+				Sentence: []string{"aabbccddeeffgghhiijjkkll"},
+				EmojiSet: reactionSet,
+			},
+			expectedErr: "slack won't let you react with more than 23 emojis :(",
 		},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			got, err := tt.cmd.Convert()
-			if tt.expectedErr != nil {
-				assert.ErrorIs(t, err, tt.expectedErr)
+			if tt.expectedErr != "" {
+				assert.ErrorContains(t, err, tt.expectedErr)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expected, got)
@@ -133,7 +154,12 @@ func BenchmarkConvertCmd_Convert(b *testing.B) {
 			Pattern:  yellowPattern,
 		},
 		"alphabet - extreme": {
-			Sentence: []string{"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc scelerisque lobortis urna, eget convallis turpis eleifend a. Aliquam mollis pharetra quam. Integer ac velit at velit posuere euismod in non mauris. Nulla sem leo, bibendum vel facilisis a, convallis ut enim. Sed egestas eget metus in dignissim. Mauris sollicitudin mauris nec velit congue, pretium luctus justo cursus. Aliquam convallis felis vel commodo rhoncus. Nam laoreet ornare molestie."},
+			Sentence: []string{
+				"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc scelerisque lobortis urna, eget convallis turpis eleifend a.",
+				"Aliquam mollis pharetra quam. Integer ac velit at velit posuere euismod in non mauris. Nulla sem leo, bibendum vel facilisis a, convallis ut enim.",
+				"Sed egestas eget metus in dignissim. Mauris sollicitudin mauris nec velit congue, pretium luctus justo cursus. Aliquam convallis felis vel commodo rhoncus.",
+				"Nam laoreet ornare molestie.",
+			},
 			EmojiSet: alphabetSet,
 			Pattern:  letterPattern,
 			Override: map[string]string{
@@ -147,6 +173,10 @@ func BenchmarkConvertCmd_Convert(b *testing.B) {
 		"scrabble": {
 			Sentence: []string{"The quick brown fox jumps over the lazy dog"},
 			EmojiSet: scrabbleSet,
+		},
+		"reaction": {
+			Sentence: []string{"Happy birthday best friend"},
+			EmojiSet: reactionSet,
 		},
 	}
 
