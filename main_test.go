@@ -52,7 +52,7 @@ func TestConvertCmd_Convert(t *testing.T) {
 			},
 			expected: ":scrabble-t::scrabble-e::scrabble-blank::scrabble-s::scrabble-t:",
 		},
-		"writes alphabet with single-use reaction constraints": {
+		"writes alphabet with reaction constraints": {
 			cmd: ConvertCmd{
 				Sentence: []string{"happy", "birthday"},
 				EmojiSet: reactionSet,
