@@ -13,6 +13,27 @@ type emojiStrategy interface {
 	WordCallback(b *strings.Builder)
 }
 
+type overrideStrategy struct {
+	emojiStrategy
+
+	overrides map[string]string
+}
+
+// Get returns an alphabet emoji of the colour that best matches the configured pattern
+func (s *overrideStrategy) Get(char string) (string, error) {
+	emoji, ok := s.overrides[string(char)]
+	if ok { // return early if we find a matching override
+		return emoji, nil
+	}
+
+	str, err := s.emojiStrategy.Get(string(char))
+	if err != nil {
+		return "", err
+	}
+
+	return str, nil
+}
+
 type alphabetStrategy struct {
 	pattern string
 	// keep track of committed characters & words for alternating patterns
@@ -39,12 +60,6 @@ const (
 	whitePattern    = "white"
 	alphabetColours = 2
 )
-
-func newAlphabetStrategy(pattern string) *alphabetStrategy {
-	return &alphabetStrategy{
-		pattern: pattern,
-	}
-}
 
 // Get returns an alphabet emoji of the colour that best matches the configured pattern
 func (a *alphabetStrategy) Get(char string) (string, error) {
@@ -75,14 +90,6 @@ func (a *alphabetStrategy) WordCallback(b *strings.Builder) {
 	a.writtenWords += 1
 }
 
-func newScrabbleStrategy(cmd *ConvertCmd) scrabbleStrategy {
-	// default to a blank tile
-	if cmd.SpaceEmoji == "" {
-		cmd.SpaceEmoji = "scrabble-blank"
-	}
-	return scrabbleStrategy{}
-}
-
 // Get returns a scrabble alphabet emoji
 func (s scrabbleStrategy) Get(char string) (string, error) {
 	if char < "a" || char > "z" {
@@ -96,14 +103,6 @@ func (s scrabbleStrategy) CharacterCallback(b *strings.Builder) {}
 
 // WordCallback is a no-op
 func (s scrabbleStrategy) WordCallback(b *strings.Builder) {}
-
-func newReactionStrategy(cmd *ConvertCmd) *reactionStrategy {
-	cmd.DefaultSpacing = ""
-	return &reactionStrategy{
-		used: make(map[string][]string),
-		max:  23,
-	}
-}
 
 // Get returns an alphabet emoji in a colour that has not yet been used. It will error when there are more of the same
 // characters in-use than available colours, or when the hard-limit of Slack reactions has been reached

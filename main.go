@@ -91,20 +91,10 @@ func (c ConvertCmd) Convert() (string, error) {
 		c.TailEmoji = trimEmoji(c.TailEmoji)
 	}
 
-	var strategy emojiStrategy
-	switch c.EmojiSet {
-	case alphabetSet:
-		strategy = newAlphabetStrategy(c.Pattern)
-	case scrabbleSet:
-		strategy = newScrabbleStrategy(&c)
-	case reactionSet:
-		strategy = newReactionStrategy(&c)
-	default:
-		return "", ErrNotSupported
+	strategy, err := c.buildStrategy()
+	if err != nil {
+		return "", err
 	}
-
-	// characters not supported by the default alphabet are mapped to specific emojis here with applied overrides
-	dict := c.getDictionary()
 
 	var b strings.Builder
 	writeEmoji(&b, c.HeadEmoji)
@@ -118,15 +108,11 @@ func (c ConvertCmd) Convert() (string, error) {
 				char += 32
 			}
 
-			// lookup characters in the dictionary, falling back to the alphabet of the strategy
-			emoji, ok := dict[string(char)]
-			if !ok {
-				if str, err := strategy.Get(string(char)); err != nil {
-					return "", err
-				} else {
-					emoji = str
-				}
+			emoji, err := strategy.Get(string(char))
+			if err != nil {
+				return "", err
 			}
+
 			if emoji == "" {
 				continue
 			}
@@ -153,12 +139,38 @@ func (c ConvertCmd) Convert() (string, error) {
 	return b.String(), nil
 }
 
-func (c ConvertCmd) getDictionary() map[string]string {
-	dict := map[string]string{}
-	for k, v := range c.Override {
-		dict[strings.ToLower(k)] = trimEmoji(v)
+func (c *ConvertCmd) buildStrategy() (emojiStrategy, error) {
+	var s emojiStrategy
+	switch c.EmojiSet {
+	case alphabetSet:
+		s = &alphabetStrategy{
+			pattern: c.Pattern,
+		}
+	case scrabbleSet:
+		// default to a blank tile
+		if c.SpaceEmoji == "" {
+			c.SpaceEmoji = "scrabble-blank"
+		}
+		s = scrabbleStrategy{}
+	case reactionSet:
+		c.DefaultSpacing = ""
+		s = &reactionStrategy{
+			used: make(map[string][]string),
+			max:  23,
+		}
+	default:
+		return s, ErrNotSupported
 	}
-	return dict
+
+	overrides := map[string]string{}
+	for k, v := range c.Override {
+		overrides[strings.ToLower(k)] = trimEmoji(v)
+	}
+
+	return &overrideStrategy{
+		emojiStrategy: s,
+		overrides:     overrides,
+	}, nil
 }
 
 func trimEmoji(emoji string) string {
